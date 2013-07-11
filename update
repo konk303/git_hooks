@@ -1,0 +1,17 @@
+# == 暗号化対応の入ったコードのrelease(及びtest/git_hooks)への流入を阻止する
+# * tag 'encrypt_start' を暗号化作業の1つ目のcommitに貼る
+# * release(及びtest/git_hooks)へのpush時に、tagと新HEADとのmerge-baseがtagだったら阻止
+#
+# taken from http://stackoverflow.com/questions/13381105/git-hook-to-prevent-an-experimental-branch-pushed-to-a-release-or-master-branch
+refname="$1"
+oldrev="$2"
+newrev="$3"
+case "$refname" in
+  refs/heads/release|refs/heads/test/git_hooks)
+    if [ $(git merge-base encrypt_start "$newrev") = $(git rev-parse encrypt_start) ]; then
+      echo "危険! $refname へ暗号化コードをpushしようとしています. pushを却下しました." >&2
+      exit 1
+    fi
+    ;;
+esac
+exit 0
