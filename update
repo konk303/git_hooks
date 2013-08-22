@@ -1,15 +1,28 @@
-# == 暗号化対応の入ったコードのrelease(及びtest/git_hooks)への流入を阻止する
+# == remoteに置く git update hook
+# 現在2種類
+# === 暗号化対応の入ったコードのrelease(及びtest/git_hooks)への流入を阻止する
 # * tag 'encrypt_start' を暗号化作業の1つ目のcommitに貼る
-# * release(及びtest/git_hooks)へのpush時に、tagと新HEADとのmerge-baseがtagだったら阻止
-#
+# * releaseへのpush時に、tagと新HEADとのmerge-baseがtagだったら阻止
+# === 最終リリース(develop -> release)後のdevelopのmasterへの流入を阻止する
+# * tag 'dont_merge_to_master' を最終リリース後の1つ目のdevelop commitに貼る
+# * master(及びtest/git_hooks)へのpush時に、tagと新HEADとのmerge-baseがtagだったら阻止
+# ==== 注意！！！
+# 結果的に`merge develop into master`を禁止しているので、ワークフロー変更時は速やかに削除する必要あり
+# （暫定的には、tag:dont_merge_to_master を削除すればオーケー）
 # taken from http://stackoverflow.com/questions/13381105/git-hook-to-prevent-an-experimental-branch-pushed-to-a-release-or-master-branch
 refname="$1"
 oldrev="$2"
 newrev="$3"
 case "$refname" in
-  refs/heads/release|refs/heads/test/git_hooks)
-    if [ $(git merge-base encrypt_start "$newrev") = $(git rev-parse encrypt_start) ]; then
+  refs/heads/release)
+    if [ -n "$(git show-ref encrypt_start)" ] && [ $(git merge-base encrypt_start "$newrev") = $(git rev-parse encrypt_start) ]; then
       echo "危険! $refname へ暗号化コードをpushしようとしています. pushを却下しました." >&2
+      exit 1
+    fi
+    ;;
+  refs/heads/master|refs/heads/test/git_hooks)
+    if [ -n "$(git show-ref dont_merge_to_master)" ] && [ $(git merge-base dont_merge_to_master "$newrev") = $(git rev-parse dont_merge_to_master) ]; then
+      echo "危険! $refname へ開発中のコード(develop)をpushしようとしています. pushを却下しました." >&2
       exit 1
     fi
     ;;
